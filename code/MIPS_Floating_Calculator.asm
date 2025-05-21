@@ -369,124 +369,68 @@ FloatMul_Zero:
     j    PrintZero                  # 跳转到打印零子程序
 
 # -------------------- 浮点数除法 --------------------
-# FloatDiv:
-#     # 检查除数是否为零
-#     beqz $s4, DivideByZero         # 如果第二个浮点数的指数为0
-#     beqz $s5, DivideByZero         # 或者尾数为0
-    
-#     # 如果被除数为零，结果为零
-#     beqz $s1, PrintZero            # 如果第一个浮点数的指数为0
-#     beqz $s2, PrintZero            # 或者尾数为0
-    
-#     # 计算结果的符号位：符号位异或运算
-#     xor  $t0, $s0, $s3              # 结果的符号位 = 第一个浮点数的符号位 异或 第二个浮点数的符号位
-    
-#     # 计算结果的指数位：第一个指数 - 第二个指数 + 127（偏移量）
-#     sub  $t1, $s1, $s4              # 结果的指数位 = 第一个浮点数的指数位 - 第二个浮点数的指数位
-#     addi $t1, $t1, 127             # 加上偏移量127
-    
-#     # 检查指数溢出
-#     bgtz $t1, FloatDiv_CheckOverflow  # 可能存在上溢
-#     bltz $t1, FloatDiv_CheckUnderflow # 可能存在下溢
-#     j    FloatDiv_ComputeMantissa   # 指数在有效范围，直接计算尾数
-    
-# FloatDiv_CheckOverflow:
-#     # 检查指数上溢
-#     li   $t9, 254                  # 设置指数的最大值（254）
-#     bgt  $t1, $t9, Overflow         # 如果指数大于254，则上溢
-#     j    FloatDiv_ComputeMantissa   # 指数未上溢，计算尾数
-    
-# FloatDiv_CheckUnderflow:
-#     # 检查指数下溢
-#     li   $t9, 0                    # 设置指数的最小值（0）
-#     blt  $t1, $t9, Underflow        # 如果指数小于0，则下溢
-#     j    FloatDiv_ComputeMantissa   # 指数未下溢，计算尾数
-    
-# FloatDiv_ComputeMantissa:
-#     # 计算结果的尾数位：两个尾数相除
-#     # 在MIPS中，div指令会将两个32位整数相除，商存在LO寄存器中，余数存在HI寄存器中
-#     # 注意：当两个尾数比23位相除时，结果有可能小于1（都是1.xxx格式）
-#     # 所以需要先将被除数左移一定位数，以确保商是规格化的
-#     # 这里采用简化的处理方式，直接计算
-#     div  $s2, $s5                   # 尾数相除
-#     mflo $t2                       # 获取商
-    
-#     # 检查商是否规格化（是否在范围0.5~1.0之间）
-# FloatDiv_NormalizeLoop:
-#     # 规格化：确保bit23=1
-#     andi $t9, $t2, 0x800000        # 检查尾数的隐含位是否为1
-#     bnez $t9, FloatDiv_BuildResult  # 如果隐含位为1，则已经规格化
-#     beqz $t2, PrintZero             # 如果尾数为0，则结果为0
-#     sll  $t2, $t2, 1                # 尾数左移1位
-#     addi $t1, $t1, -1               # 指数减1
-#     beqz $t1, Underflow             # 检查指数下溢
-#     j    FloatDiv_NormalizeLoop     # 继续规格化
-    
-# FloatDiv_BuildResult:
-#     # 将尾数的隐含位清零并重组IEEE 754表示
-#     andi $t2, $t2, 0x7FFFFF         # 清除隐含位，只保留尾数的低23位
-#     sll  $t6, $t0, 31               # 符号位移位到最高位
-#     sll  $t7, $t1, 23               # 指数位移位到正确位置
-#     or   $t7, $t6, $t7              # 组合符号位和指数位
-#     or   $t7, $t7, $t2              # 组合尾数位
-#     j    PrintResult                # 跳转到打印结果
 FloatDiv:
-    # 1. 计算结果的符号位：sign = sign1 XOR sign2
-    srl   $t0, $s0, 31         # t0 = 第1数符号
-    srl   $t1, $s3, 31         # t1 = 第2数符号
-    xor   $t6, $t0, $t1        # t6 = 结果符号（0/1）
+    # 检查除数是否为零
+    beqz $s4, DivideByZero         # 如果第二个浮点数的指数为0
+    beqz $s5, DivideByZero         # 或者尾数为0
+    
+    # 如果被除数为零，结果为零
+    beqz $s1, PrintZero            # 如果第一个浮点数的指数为0
+    beqz $s2, PrintZero            # 或者尾数为0
+    
+    # 计算结果的符号位：符号位异或运算
+    xor  $t0, $s0, $s3              # 结果的符号位 = 第一个浮点数的符号位 异或 第二个浮点数的符号位
+    
+    # 计算结果的指数位：第一个指数 - 第二个指数 + 127（偏移量）
+    sub  $t1, $s1, $s4              # 结果的指数位 = 第一个浮点数的指数位 - 第二个浮点数的指数位
+    addi $t1, $t1, 127             # 加上偏移量127
+    
+    # 检查指数溢出
+    bgtz $t1, FloatDiv_CheckOverflow  # 可能存在上溢
+    bltz $t1, FloatDiv_CheckUnderflow # 可能存在下溢
+    j    FloatDiv_ComputeMantissa   # 指数在有效范围，直接计算尾数
+    
+FloatDiv_CheckOverflow:
+    # 检查指数上溢
+    li   $t9, 254                  # 设置指数的最大值（254）
+    bgt  $t1, $t9, Overflow         # 如果指数大于254，则上溢
+    j    FloatDiv_ComputeMantissa   # 指数未上溢，计算尾数
+    
+FloatDiv_CheckUnderflow:
+    # 检查指数下溢
+    li   $t9, 0                    # 设置指数的最小值（0）
+    blt  $t1, $t9, Underflow        # 如果指数小于0，则下溢
+    j    FloatDiv_ComputeMantissa   # 指数未下溢，计算尾数
+    
+FloatDiv_ComputeMantissa:
+    # 计算结果的尾数位：两个尾数相除
+    # 在MIPS中，div指令会将两个32位整数相除，商存在LO寄存器中，余数存在HI寄存器中
+    # 注意：当两个尾数比23位相除时，结果有可能小于1（都是1.xxx格式）
+    # 所以需要先将被除数左移一定位数，以确保商是规格化的
+    # 这里采用简化的处理方式，直接计算
+    div  $s2, $s5                   # 尾数相除
+    mflo $t2                       # 获取商
+    
+    # 检查商是否规格化（是否在范围0.5~1.0之间）
+FloatDiv_NormalizeLoop:
+    # 规格化：确保bit23=1
+    andi $t9, $t2, 0x800000        # 检查尾数的隐含位是否为1
+    bnez $t9, FloatDiv_BuildResult  # 如果隐含位为1，则已经规格化
+    beqz $t2, PrintZero             # 如果尾数为0，则结果为0
+    sll  $t2, $t2, 1                # 尾数左移1位
+    addi $t1, $t1, -1               # 指数减1
+    beqz $t1, Underflow             # 检查指数下溢
+    j    FloatDiv_NormalizeLoop     # 继续规格化
+    
+FloatDiv_BuildResult:
+    # 将尾数的隐含位清零并重组IEEE 754表示
+    andi $t2, $t2, 0x7FFFFF         # 清除隐含位，只保留尾数的低23位
+    sll  $t6, $t0, 31               # 符号位移位到最高位
+    sll  $t7, $t1, 23               # 指数位移位到正确位置
+    or   $t7, $t6, $t7              # 组合符号位和指数位
+    or   $t7, $t7, $t2              # 组合尾数位
+    j    PrintResult                # 跳转到打印结果
 
-    # 2. 检测除数是否为 0（exp2==0 && frac2==0）
-    beq   $s4, $zero, .chkFrac2
-    j     .chkDenorm2
-.chkFrac2:
-    beq   $s5, $zero, DivideByZero
-.chkDenorm2:
-    # 检测被除数是否为 0
-    beq   $s1, $zero, PrintZero
-    beq   $s2, $zero, PrintZero
-
-    # 3. 取出尾数并补上隐含的 1
-    andi  $t2, $s2, 0x7FFFFF    # t2 = frac1
-    ori   $t2, $t2, 0x800000    # t2 = M1 = 1.xxx
-    andi  $t3, $s5, 0x7FFFFF    # t3 = frac2
-    ori   $t3, $t3, 0x800000    # t3 = M2 = 1.yyy
-
-    # 4. 计算指数差 exp_res = exp1 - exp2 + bias
-    sub   $t4, $s1, $s4
-    addi  $t4, $t4, 127         # t4 = 新指数
-
-    # 5. 检查指数上溢 / 下溢
-    li    $t5, 254
-    bgt   $t4, $t5, Overflow    # exp_res > 254 ⇒ 上溢
-    li    $t5, 1
-    blt   $t4, $t5, Underflow   # exp_res < 1   ⇒ 下溢
-
-    # 6. 计算未规格化的尾数：(M1 << 23) / M2
-    sll   $t2, $t2, 23          # M1 << 23
-    div   $t2, $t3              # LO = (M1<<23)/M2
-    mflo  $t7                   # t7 = 商，最高位应在 bit23
-
-Normalize:
-    # 7. 如果最高位不是 1（规格化要求），则左移并调整指数
-    andi  $t5, $t7, 0x800000    # 检查 bit23
-    bne   $t5, $zero, BuildResult
-    beq   $t7, $zero, PrintZero # 如果结果尾数为 0，输出 0
-    sll   $t7, $t7, 1           # mantissa << 1
-    addi  $t4, $t4, -1          # exp_res--
-    blt   $t4, $zero, Underflow # 指数下溢
-    j     Normalize
-
-BuildResult:
-    # 8. 清除隐含位并重组 IEEE-754 32 位格式
-    andi  $t7, $t7, 0x7FFFFF    # 去掉隐含位，只保留低23位
-    sll   $t5, $t4, 23          # exp_res << 23
-    sll   $t6, $t6, 31          # sign << 31
-    or    $t5, $t5, $t7         # exp + frac
-    or    $t5, $t5, $t6         # + sign
-    move  $t7, $t5              # 最终结果放 $t7
-
-    j     PrintResult
 # -------------------- 打印结果子程序 --------------------
 PrintResult:
     # 打印结果提示
